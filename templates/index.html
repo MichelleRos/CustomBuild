@@ -39,6 +39,21 @@
         <p>Please select the required options for the custom firmware build, then hit 'Generate'.</p>
 
         <form action="/generate" method="post">
+            <!-- <form action="/branch" method="post"> -->
+                <!-- onchange="this.form.submit()" -->
+                <label for="remote">Choose a remote: 
+                    <select name="remote">
+                        {% for remote in get_remotes()[0] %}
+                        {% if remotees == get_remotes()[1] %}
+                        <option value="{{remote}}" selected>{{remote}}</option>
+                        {% else %}
+                        <option value="{{remote}}">{{remote}}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </label>
+            <!-- </form> -->
+            <p></p>
             <label for="branch">Choose a branch:
                 <select name="branch">
                     {% for branch in get_branches()[0] %}

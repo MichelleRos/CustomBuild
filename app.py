@@ -23,8 +23,11 @@ appdir = os.path.dirname(__file__)
 
 VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker', 'Blimp' ]
 default_vehicle = 'Copter'
-BRANCHES = ['upstream/master', 'upstream/Plane-4.2', 'upstream/Copter-4.2', 'upstream/Rover-4.2']
-default_branch = 'upstream/master'
+REMOTES = ['upstream', 'miche']
+default_remote = 'upstream'
+# current_remote = ''
+BRANCHES = ['one', 'two']
+default_branch = 'master'
 
 def get_boards_from_ardupilot_tree():
     '''return a list of boards to build'''
@@ -295,14 +298,16 @@ def status_thread():
             pass
         time.sleep(3)
 
-def update_source(branch):
+def update_source(remote, branch):
     '''update submodules and ardupilot git tree.  Returns new source git hash'''
     app.logger.info('Fetching ardupilot remote')
-    subprocess.run(['git', 'fetch', branch.split('/', 1)[0]],
+    app.logger.info('MIR: remote is ' + remote)
+    subprocess.run(['git', 'fetch', remote],
                    cwd=sourcedir)
     app.logger.info('Updating ardupilot git tree')
+    app.logger.info('MIR: Resetting to branch ' +remote+' / '+branch)
     subprocess.run(['git', 'reset', '--hard',
-                    branch],
+                    remote+'/'+branch],
                        cwd=sourcedir)
     app.logger.info('Updating submodules')
     subprocess.run(['git', 'submodule',
@@ -317,6 +322,22 @@ def update_source(branch):
     source_git_hash = source_git_hash.rstrip()
     app.logger.info('new git hash ' + source_git_hash)
     return source_git_hash
+
+def find_branches(remote):
+    global BRANCHES
+    output = subprocess.check_output(['git', 'branch', '-r'], cwd=sourcedir, encoding = 'utf-8')
+    out2 = output.splitlines()
+    print('MIR')
+    print(out2)
+    BRANCHES = []
+    for line in out2:
+        if remote in line:
+            line2 = line.split('/', 1)[1]
+            BRANCHES.append(line2)
+    print('MIR')
+    print(BRANCHES)
+
+
 
 import optparse
 parser = optparse.OptionParser("app.py")
@@ -357,19 +378,29 @@ app.logger.info('Initial fetch')
 global SOURCE_GIT_HASH
 global BUILD_OPTIONS
 global BOARDS
-SOURCE_GIT_HASH = update_source(default_branch)
+find_branches(default_remote)
+SOURCE_GIT_HASH = update_source(default_remote, default_branch)
 # get build options from source:
 BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
 BOARDS = get_boards_from_ardupilot_tree()
 
+# @app.route('/branch', methods=['GET', 'POST'])
+# def branch():
+#     branch = request.form['branch']
+#     find_branches(branch)
+
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     try:
-        branch = request.form['branch']
-        if not branch in BRANCHES:
-            raise Exception("bad branch")
+        find_branches(default_remote)
 
-        new_git_hash = update_source(branch)
+        branch = request.form['branch']
+        remote = request.form['remote']
+        # remote = branch.split('/', 1)[0]
+        # if not remote in REMOTES:
+        #     raise Exception("bad remote")
+
+        new_git_hash = update_source(remote, branch)
 
         global SOURCE_GIT_HASH
         global BUILD_OPTIONS
@@ -511,6 +542,9 @@ def get_build_categories(BUILD_OPTIONS):
 def get_vehicles():
     return (VEHICLES, default_vehicle)
 
+def get_remotes():
+    return (REMOTES, default_remote)
+
 def get_branches():
     return (BRANCHES, default_branch)
 
@@ -522,6 +556,7 @@ def home():
                            get_boards=get_boards,
                            get_vehicles=get_vehicles,
                            get_branches=get_branches,
+                           get_remotes=get_remotes,
                            get_build_options=lambda x : get_build_options(BUILD_OPTIONS, x),
                            get_build_categories=lambda : get_build_categories(BUILD_OPTIONS))
 
