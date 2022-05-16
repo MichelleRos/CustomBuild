@@ -17,6 +17,8 @@ from threading import Thread, Lock
 # run at lower priority
 os.nice(20)
 
+
+
 #BOARDS = [ 'BeastF7', 'BeastH7' ]
 
 appdir = os.path.dirname(__file__)
@@ -28,6 +30,8 @@ default_remote = 'upstream'
 current_remote = 'upstream'
 BRANCHES = ['one', 'two']
 default_branch = 'master'
+
+BOARDS = []
 
 def get_boards_from_ardupilot_tree():
     '''return a list of boards to build'''
@@ -55,6 +59,7 @@ def get_boards_from_ardupilot_tree():
     return boards
 
 def get_boards():
+    # app.logger.info('MIR: In get_boards()')
     global BOARDS
     boards = BOARDS
     boards.sort()
@@ -71,6 +76,22 @@ def get_build_options_from_ardupilot_tree():
     spec.loader.exec_module(mod)
     app.logger.info('Took %f seconds to get build options' % (time.time() - tstart))
     return mod.BUILD_OPTIONS
+
+
+def get_build_options(BUILD_OPTIONS, category):
+    return sorted([f for f in BUILD_OPTIONS if f.category == category], key=lambda x: x.description.lower())
+
+def get_build_categories(BUILD_OPTIONS):
+    return sorted(list(set([f.category for f in BUILD_OPTIONS])))
+
+def get_vehicles():
+    return (VEHICLES, default_vehicle)
+
+def get_remotes():
+    return (REMOTES, default_remote)
+
+def get_branches():
+    return (BRANCHES, default_branch)
 
 queue_lock = Lock()
 
@@ -289,10 +310,30 @@ def create_status():
     f.close()
     os.replace(tmpfile, statusfile)
 
+def create_options():
+    global BUILD_OPTIONS
+    app.logger.info('MIR: Gen options.html')
+    tmpfile = os.path.join(outdir_parent, "options.tmp")
+    statusfile = os.path.join(outdir_parent, "options.html")
+    f = open(tmpfile, "w")
+    app3 = Flask("options")
+    with app3.app_context():
+        f.write(render_template_string(open(os.path.join(appdir, 'templates', 'options.html')).read(),
+                           get_boards=get_boards,
+                           get_vehicles=get_vehicles,
+                           get_branches=get_branches,
+                           get_remotes=get_remotes,
+                           get_build_options=lambda x : get_build_options(BUILD_OPTIONS, x),
+                           get_build_categories=lambda : get_build_categories(BUILD_OPTIONS)))             
+    f.close()
+    os.replace(tmpfile, statusfile)
+    app.logger.info('MIR: Finished gen options.html')
+
 def status_thread():
     while True:
         try:
             create_status()
+            create_options()
         except Exception as ex:
             app.logger.info(ex)
             pass
@@ -357,6 +398,7 @@ outdir_parent = os.path.join(basedir, 'builds')
 tmpdir_parent = os.path.join(basedir, 'tmp')
 
 app = Flask(__name__, template_folder='templates')
+app.debug=True
 
 if not os.path.isdir(outdir_parent):
     create_directory(outdir_parent)
@@ -379,7 +421,7 @@ except IOError:
 app.logger.info('Initial fetch')
 global SOURCE_GIT_HASH
 global BUILD_OPTIONS
-global BOARDS
+# global BOARDS
 find_branches(default_remote)
 SOURCE_GIT_HASH = update_source(default_remote, default_branch)
 # get build options from source:
@@ -397,10 +439,12 @@ BOARDS = get_boards_from_ardupilot_tree()
 def generate():
     try:
         remote = request.form['remote']
+        app.logger.info('Remote is ', remote)
         global current_remote 
         current_remote = remote
 
         branch = request.form['branch']
+        app.logger.info('Branch is ', branch)
         # remote = branch.split('/', 1)[0]
         # if not remote in REMOTES:
         #     raise Exception("bad remote")
@@ -537,35 +581,19 @@ def view():
     app.logger.info("viewing %s" % token)
     return render_template('generate.html', token=token)
 
-    
-def get_build_options(BUILD_OPTIONS, category):
-    return sorted([f for f in BUILD_OPTIONS if f.category == category], key=lambda x: x.description.lower())
-
-def get_build_categories(BUILD_OPTIONS):
-    return sorted(list(set([f.category for f in BUILD_OPTIONS])))
-
-def get_vehicles():
-    return (VEHICLES, default_vehicle)
-
-def get_remotes():
-    return (REMOTES, default_remote)
-
-def get_branches():
-    return (BRANCHES, default_branch)
-
 @app.route('/', methods=['GET', 'POST'])
 def home():
-    try:
-        remote = request.form['remote']
-        if not remote in REMOTES:
-            app.logger.info('MIR: No remote, using current: ' + current_remote)
-            remote = current_remote
-        else:
-            app.logger.info('MIR: Using '+ remote)
-        find_branches(remote)
-    except Exception as ex:
-        app.logger.info('MIR: Error')
-        app.logger.error(ex)
+    # try:
+    #     remote = request.form['remote']
+    #     if not remote in REMOTES:
+    #         app.logger.info('MIR: No remote, using current: ' + current_remote)
+    #         remote = current_remote
+    #     else:
+    #         app.logger.info('MIR: Using '+ remote)
+    #     find_branches(remote)
+    # except Exception as ex:
+    #     app.logger.info('MIR: Error')
+    #     app.logger.error(ex)
     app.logger.info('Rendering index.html')
     global BUILD_OPTIONS
     return render_template('index.html',
