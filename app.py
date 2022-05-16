@@ -25,7 +25,7 @@ VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker', 'Blimp' ]
 default_vehicle = 'Copter'
 REMOTES = ['upstream', 'miche']
 default_remote = 'upstream'
-# current_remote = ''
+current_remote = 'upstream'
 BRANCHES = ['one', 'two']
 default_branch = 'master'
 
@@ -325,6 +325,8 @@ def update_source(remote, branch):
 
 def find_branches(remote):
     global BRANCHES
+    global current_remote 
+    current_remote = remote
     output = subprocess.check_output(['git', 'branch', '-r'], cwd=sourcedir, encoding = 'utf-8')
     out2 = output.splitlines()
     print('MIR')
@@ -385,17 +387,20 @@ BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
 BOARDS = get_boards_from_ardupilot_tree()
 
 # @app.route('/branch', methods=['GET', 'POST'])
-# def branch():
-#     branch = request.form['branch']
-#     find_branches(branch)
+# def remote():
+#     remote = request.form['remote']
+#     find_branches(remote)
+#     if not remote in REMOTES:
+#         raise Exception("bad remote")
 
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     try:
-        find_branches(default_remote)
+        remote = request.form['remote']
+        global current_remote 
+        current_remote = remote
 
         branch = request.form['branch']
-        remote = request.form['remote']
         # remote = branch.split('/', 1)[0]
         # if not remote in REMOTES:
         #     raise Exception("bad remote")
@@ -548,8 +553,19 @@ def get_remotes():
 def get_branches():
     return (BRANCHES, default_branch)
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def home():
+    try:
+        remote = request.form['remote']
+        if not remote in REMOTES:
+            app.logger.info('MIR: No remote, using current: ' + current_remote)
+            remote = current_remote
+        else:
+            app.logger.info('MIR: Using '+ remote)
+        find_branches(remote)
+    except Exception as ex:
+        app.logger.info('MIR: Error')
+        app.logger.error(ex)
     app.logger.info('Rendering index.html')
     global BUILD_OPTIONS
     return render_template('index.html',

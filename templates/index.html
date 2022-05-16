@@ -44,7 +44,7 @@
                 <label for="remote">Choose a remote: 
                     <select name="remote">
                         {% for remote in get_remotes()[0] %}
-                        {% if remotees == get_remotes()[1] %}
+                        {% if remotes == get_remotes()[1] %}
                         <option value="{{remote}}" selected>{{remote}}</option>
                         {% else %}
                         <option value="{{remote}}">{{remote}}</option>
