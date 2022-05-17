@@ -358,10 +358,13 @@ app.logger.info('Initial fetch')
 global SOURCE_GIT_HASH
 global BUILD_OPTIONS
 global BOARDS
+global chosen_branch
 SOURCE_GIT_HASH = update_source(default_branch)
 # get build options from source:
 BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
 BOARDS = get_boards_from_ardupilot_tree()
+chosen_branch = default_branch
+
 
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
@@ -498,18 +501,23 @@ def get_vehicles():
     return (VEHICLES, default_vehicle)
 
 def get_branches():
-    return (BRANCHES, default_branch)
+    global chosen_branch
+    return (BRANCHES, chosen_branch)
 
 @app.route('/')
 def home():
     app.logger.info('Rendering index.html')
     global BUILD_OPTIONS
     return render_template('index.html',
-                           get_branches=get_branches)
+                           get_boards=get_boards,
+                           get_vehicles=get_vehicles,
+                           get_branches=get_branches,
+                           get_build_options=lambda x : get_build_options(BUILD_OPTIONS, x),
+                           get_build_categories=lambda : get_build_categories(BUILD_OPTIONS))
 
-@app.route('/index2', methods=['GET', 'POST'])
+@app.route('/toindex', methods=['GET', 'POST'])
 def home2():
-    app.logger.info('Rendering index2.html')
+    app.logger.info('Rendering toindex.html')
     global chosen_branch
     chosen_branch = request.form['branch']
     if not chosen_branch in BRANCHES:
@@ -527,11 +535,7 @@ def home2():
         # get build options from source:
         BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
         BOARDS = get_boards_from_ardupilot_tree()
-    return render_template('index2.html',
-                           get_boards=get_boards,
-                           get_vehicles=get_vehicles,
-                           get_build_options=lambda x : get_build_options(BUILD_OPTIONS, x),
-                           get_build_categories=lambda : get_build_categories(BUILD_OPTIONS))
+    return render_template('toindex.html')
 
 @app.route("/builds/<path:name>")
 def download_file(name):
