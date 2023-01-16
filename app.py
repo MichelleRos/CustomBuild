@@ -268,6 +268,7 @@ def get_build_status():
         selected_features_dict = json.loads(open(feature_file).read())
         selected_features = selected_features_dict['selected_features']
         git_hash_short = selected_features_dict['git_hash_short']
+        branch = selected_features_dict.get('branch', '-') #this method is only needed temporarily, while some .jsons don't have the branch attribute
         features = ''
         for feature in selected_features:
             if features == '':
@@ -288,7 +289,7 @@ def get_build_status():
                 status = "Running"
             else:
                 status = "Failed"
-        ret.append((status,age_str,board,vehicle,link,features,git_hash_short))
+        ret.append((status,age_str,board,vehicle,link,branch,features,git_hash_short))
     return ret
 
 def create_status():
@@ -419,6 +420,7 @@ def generate():
         feature_list = spaces.join(feature_list)
         selected_features_dict = {}
         selected_features_dict['selected_features'] = selected_features
+        selected_features_dict['branch'] = BRANCHES[chosen_branch]
 
         queue_lock.acquire()
 
